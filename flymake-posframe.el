@@ -1,4 +1,4 @@
-;;; flymake-posframe.el -- posframe support for Flymake -*- lexical-binding: t; -*-
+;;; flymake-posframe.el --- posframe support for Flymake -*- lexical-binding: t; -*-
 
 ;; Author: Junyi Hou <junyi.yi.hou@gmail.com>
 ;; Maintainer: Junyi Hou <junyi.yi.hou@gmail.com>
