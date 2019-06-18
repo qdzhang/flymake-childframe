@@ -37,7 +37,7 @@
   "Number of seconds before the posframe pops up."
   :group 'flymake-posframe)
 
-(defcustom flymake-posframe-timeout 4
+(defcustom flymake-posframe-timeout nil
   "Number of seconds to close the posframe."
   :group 'flymake-posframe
   :type 'integer)
@@ -100,7 +100,7 @@ If there is no error, return nil."
          (text (flymake-diagnostic-text error))
          (prefix (gethash type flymake-posframe-prefix))
          (face (gethash type flymake-posframe-face)))
-        (propertize (format "%s %s" prefix text) 'face 'error)))
+        (propertize (format "%s %s" prefix text) :face 'face)))
 
 (defun flymake-posframe--write-to-buffer (error)
   "Format information of ERROR and put it into `flymake-posframe-buffer'.  If no `flymake-posframe-buffer', make one."
