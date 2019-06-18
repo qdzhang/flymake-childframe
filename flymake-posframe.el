@@ -80,42 +80,48 @@
 
 
 (defun flymake-posframe--get-error (&optional beg end)
-  "Get `flymake--diag' between BEG and END, if they are not provided, use `point'.
+  "Get `flymake--diag' between BEG and END, if they are not provided, use `line-beginning-position' and `line-end-position'.
 
-If there is only one error in current line, return this error;
-If there are more than one error, return the one that is closest to the point
-If there is no error, return nil."
+Return a list of errors found between BEG and END.
+"
   (let* ((beg (or beg (line-beginning-position)))
          (end (or end (line-end-position)))
          (error-list (flymake--overlays
                       :beg beg
-                      :end end))
-         (target (car error-list)))
-    (when target
-      (overlay-get target 'flymake-diagnostic))))
+                      :end end)))
+    error-list))
 
-(defun flymake-posframe--format-info (error)
-  "Format the information from ERROR."
-  (let* ((type (flymake-diagnostic-type error))
-         (text (flymake-diagnostic-text error))
-         (prefix (gethash type flymake-posframe-prefix))
-         (face (gethash type flymake-posframe-face)))
-        (propertize (format "%s %s" prefix text) :face 'face)))
+(defun flymake-posframe--format-one (err)
+  "Format ERR for display."
+ (let* ((type (flymake-diagnostic-type err))
+           (text (flymake-diagnostic-text err))
+           (prefix (gethash type flymake-posframe-prefix))
+           (face (gethash type flymake-posframe-face)))
+      (propertize (format "%s %s" prefix text) 'face face)))
 
-(defun flymake-posframe--write-to-buffer (error)
-  "Format information of ERROR and put it into `flymake-posframe-buffer'.  If no `flymake-posframe-buffer', make one."
+(defun flymake-posframe--format-info (error-list)
+  "Format the information from ERROR-LIST."
+  (let* ((err (overlay-get (car error-list) 'flymake-diagnostic))
+         (error-list (cdr error-list))
+         (out (flymake-posframe--format-one err)))
+    (if error-list
+        (concat out "\n" (flymake-posframe--format-info error-list))
+      out)))
+
+(defun flymake-posframe--write-to-buffer (error-list)
+  "Format information of ERROR-LIST and put it into `flymake-posframe-buffer'.  If no `flymake-posframe-buffer', make one."
     (with-current-buffer (get-buffer-create flymake-posframe-buffer)
       (erase-buffer)
-      (insert (flymake-posframe--format-info error))))
+      (insert (flymake-posframe--format-info error-list))))
 
 (defun flymake-posframe--show ()
   "Show error information at point."
-  (let ((target (flymake-posframe--get-error)))
+  (let ((error-list (flymake-posframe--get-error)))
     (when (and (posframe-workable-p)
-               target
+               error-list
                (null (evil-insert-state-p)))
       ;; first update output buffer
-      (flymake-posframe--write-to-buffer target)
+      (flymake-posframe--write-to-buffer error-list)
       ;; display
       (posframe-show
        flymake-posframe-buffer
