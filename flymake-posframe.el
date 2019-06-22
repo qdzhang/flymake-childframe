@@ -125,7 +125,7 @@ Return a list of errors found between BEG and END.
       ;; display
       (posframe-show
        flymake-posframe-buffer
-       :position (point)
+       :position (line-beginning-position)
        :timeout flymake-posframe-timeout
        :internal-border-width 1
        :internal-border-color "gray80"
