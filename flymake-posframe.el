@@ -160,6 +160,10 @@ Only need to run once.  Once run, remove itself from the hooks"
   (unless (eq (point) flymake-posframe--cursor-pos)
     (posframe-hide flymake-posframe-buffer)
 
+    ;; reset flymake-posframe--line
+    (setq-local flymake-posframe--line
+                (cons 0 0))
+
     (dolist (hook flymake-posframe-hide-posframe-hooks)
       (remove-hook hook #'flymake-posframe-hide))))
 
