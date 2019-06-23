@@ -75,6 +75,9 @@
 (defvar flymake-posframe-buffer "*flymake-posframe-buffer*"
   "Buffer to store linter information.")
 
+(defvar-local flymake-posframe--cursor-pos 0
+  "The current cursor position.")
+
 (defvar-local flymake-posframe--line (cons 0 0)
   "Beginning and end position of the current line.")
 
@@ -119,7 +122,9 @@ Return a list of errors found between BEG and END.
   (let ((error-list (flymake-posframe--get-error)))
     (when (and (posframe-workable-p)
                error-list
-               (null (evil-insert-state-p)))
+               (null (evil-insert-state-p))
+               (or (> (point) (cdr flymake-posframe--line))
+                   (< (point) (car flymake-posframe--line))))
       ;; first update output buffer
       (flymake-posframe--write-to-buffer error-list)
       ;; display
@@ -134,6 +139,7 @@ Return a list of errors found between BEG and END.
       ;; setup remove hook
       (setq-local flymake-posframe--line
                   (cons (line-beginning-position) (line-end-position)))
+      (setq-local flymake-posframe--cursor-pos (point))
 
       (dolist (hook flymake-posframe-hide-posframe-hooks)
         (add-hook hook #'flymake-posframe-hide)))))
@@ -151,8 +157,7 @@ Return a list of errors found between BEG and END.
 Only need to run once.  Once run, remove itself from the hooks"
 
   ;; if move cursor, hide posframe
-  (when (or (> (point) (cdr flymake-posframe--line))
-            (< (point) (car flymake-posframe--line)))
+  (unless (eq (point) flymake-posframe--cursor-pos)
     (posframe-hide flymake-posframe-buffer)
 
     (dolist (hook flymake-posframe-hide-posframe-hooks)
