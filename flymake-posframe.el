@@ -169,7 +169,7 @@ Return a list of errors found between BEG and END.
 Only need to run once.  Once run, remove itself from the hooks"
 
   ;; if move cursor, hide posframe
-  (unless ((eq (point) flymake-posframe--cursor-pos))
+  (unless ((eq (point) flymake-posframe--error-pos))
     (posframe-hide flymake-posframe-buffer)
 
     (dolist (hook flymake-posframe-hide-posframe-hooks)
