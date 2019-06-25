@@ -75,8 +75,21 @@
 (defvar flymake-posframe-buffer "*flymake-posframe-buffer*"
   "Buffer to store linter information.")
 
-(defvar-local flymake-posframe--cursor-pos 0
+(defvar-local flymake-posframe--error-pos 0
   "The current cursor position.")
+
+(defvar-local flymake-posframe--error-line 0
+  "The current line number")
+
+
+(defun flymake-posframe--check-line ()
+  "docstring"
+  (interactive)
+  )
+
+(defun flymake-posframe--get-current-line ()
+  "Return the current line number at point."
+  (string-to-number (format-mode-line "%l")))
 
 
 (defun flymake-posframe--get-error (&optional beg end)
@@ -119,7 +132,9 @@ Return a list of errors found between BEG and END.
   (let ((error-list (flymake-posframe--get-error)))
     (when (and (posframe-workable-p)
                error-list
-               (null (evil-insert-state-p)))
+               (null (evil-insert-state-p))
+               (null (eq (flymake-posframe--get-current-line)
+                         flymake-posframe--error-line)))
       ;; first update output buffer
       (flymake-posframe--write-to-buffer error-list)
       ;; display
@@ -131,9 +146,13 @@ Return a list of errors found between BEG and END.
        :internal-border-color "gray80"
        :left-fringe 1
        :right-fringe 1)
-      ;; setup remove hook
-      (setq-local flymake-posframe--cursor-pos (point))
+      
+      ;; update position info
+      (setq-local flymake-posframe--error-line
+                  (flymake-posframe--get-current-line))
+      (setq-local flymake-posframe--error-pos (point))
 
+      ;; setup remove hook
       (dolist (hook flymake-posframe-hide-posframe-hooks)
         (add-hook hook #'flymake-posframe-hide)))))
 
@@ -150,11 +169,18 @@ Return a list of errors found between BEG and END.
 Only need to run once.  Once run, remove itself from the hooks"
 
   ;; if move cursor, hide posframe
-  (unless (eq (point) flymake-posframe--cursor-pos)
+  (unless ((eq (point) flymake-posframe--cursor-pos))
     (posframe-hide flymake-posframe-buffer)
 
     (dolist (hook flymake-posframe-hide-posframe-hooks)
       (remove-hook hook #'flymake-posframe-hide))))
+
+;; reset `flymake-posframe--error-line' if move to another line
+(add-hook 'post-command-hook
+          (defun flymake-posframe-update-error-line
+              (unless (eq (flymake-posframe--get-current-line)
+                          flymake-posframe--error-line)
+                (setq-local flymake-posframe--error-line 0))))
 
 ;;;###autoload
 (define-minor-mode flymake-posframe-mode
