@@ -177,7 +177,7 @@ Only need to run once.  Once run, remove itself from the hooks"
 
 ;; reset `flymake-posframe--error-line' if move to another line
 (add-hook 'post-command-hook
-          (defun flymake-posframe-update-error-line
+          (defun flymake-posframe-update-error-line ()
               (unless (eq (flymake-posframe--get-current-line)
                           flymake-posframe--error-line)
                 (setq-local flymake-posframe--error-line 0))))
