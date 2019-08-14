@@ -81,16 +81,9 @@
 (defvar-local flymake-posframe--error-line 0
   "The current line number")
 
-
-(defun flymake-posframe--check-line ()
-  "docstring"
-  (interactive)
-  )
-
 (defun flymake-posframe--get-current-line ()
   "Return the current line number at point."
   (string-to-number (format-mode-line "%l")))
-
 
 (defun flymake-posframe--get-error (&optional beg end)
   "Get `flymake--diag' between BEG and END, if they are not provided, use `line-beginning-position' and `line-end-position'.
@@ -110,7 +103,7 @@ Return a list of errors found between BEG and END.
            (text (flymake-diagnostic-text err))
            (prefix (gethash type flymake-posframe-prefix))
            (face (gethash type flymake-posframe-face)))
-      (propertize (format "%s %s" prefix text) 'face face)))
+      (propertize (format "%s%s" prefix text) 'face face)))
 
 (defun flymake-posframe--format-info (error-list)
   "Format the information from ERROR-LIST."
@@ -127,14 +120,19 @@ Return a list of errors found between BEG and END.
       (erase-buffer)
       (insert (flymake-posframe--format-info error-list))))
 
+;; TODO: make this customizable
+(defun flymake-posframe--predates ()
+  "A set of conditions under which flymake-posframe make and show posframe."
+  (and (posframe-workable-p)
+       error-list
+       (null (evil-insert-state-p))
+       (null (eq (flymake-posframe--get-current-line)
+                 flymake-posframe--error-line))))
+
 (defun flymake-posframe--show ()
   "Show error information at point."
   (let ((error-list (flymake-posframe--get-error)))
-    (when (and (posframe-workable-p)
-               error-list
-               (null (evil-insert-state-p))
-               (null (eq (flymake-posframe--get-current-line)
-                         flymake-posframe--error-line)))
+    (when (flymake-posframe--predates)
       ;; first update output buffer
       (flymake-posframe--write-to-buffer error-list)
       ;; display
