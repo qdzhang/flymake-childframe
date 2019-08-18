@@ -121,7 +121,7 @@ Return a list of errors found between BEG and END.
       (insert (flymake-posframe--format-info error-list))))
 
 ;; TODO: make this customizable
-(defun flymake-posframe--predates ()
+(defun flymake-posframe--predicates (error-list)
   "A set of conditions under which flymake-posframe make and show posframe."
   (and (posframe-workable-p)
        error-list
@@ -132,7 +132,7 @@ Return a list of errors found between BEG and END.
 (defun flymake-posframe--show ()
   "Show error information at point."
   (let ((error-list (flymake-posframe--get-error)))
-    (when (flymake-posframe--predates)
+    (when (flymake-posframe--predicates error-list)
       ;; first update output buffer
       (flymake-posframe--write-to-buffer error-list)
       ;; display
