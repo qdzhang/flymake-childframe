@@ -38,11 +38,13 @@
 
 (defcustom flymake-posframe-frontend 'pos-tip
   "Frontend used by flymake posframe, currently supports `pos-tip' or `posframe'."
-  :group 'flymake-posframe)
+  :group 'flymake-posframe
+  :type 'symbol)
 
 (defcustom flymake-posframe-delay 1
   "Number of seconds before the posframe pops up."
-  :group 'flymake-posframe)
+  :group 'flymake-posframe
+  :type 'integer)
 
 (defcustom flymake-posframe-timeout nil
   "Number of seconds to close the posframe."
