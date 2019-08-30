@@ -2,8 +2,8 @@
 
 ;; Author: Junyi Hou <junyi.yi.hou@gmail.com>
 ;; Maintainer: Junyi Hou <junyi.yi.hou@gmail.com>
-;; Version: 0.1
-;; Package-requires: ((emacs "26") (posframe "0.3.0"))
+;; Version: 0.2
+;; Package-requires: ((emacs "26") (posframe "0.3.0") (pos-tip "20150318.1513"))
 
 
 ;; This file is not part of GNU Emacs.
@@ -23,15 +23,22 @@
 
 ;;; Commentary:
 
+;; CHANGE LOG:
+;; v0.2  adding support for pos-tip frontend
+;; v0.1  first version
+
 ;;; Code:
 
-(require 'posframe)
 (require 'flymake)
 
 (defgroup flymake-posframe nil
   "Group for customize flymake posframe."
   :group 'flymake
   :prefix "flymake-posframe-")
+
+(defcustom flymake-posframe-frontend 'pos-tip
+  "Frontend used by flymake posframe, currently supports `pos-tip' or `posframe'."
+  :group 'flymake-posframe)
 
 (defcustom flymake-posframe-delay 1
   "Number of seconds before the posframe pops up."
@@ -129,6 +136,12 @@ Return a list of errors found between BEG and END.
        (null (eq (flymake-posframe--get-current-line)
                  flymake-posframe--error-line))))
 
+(defmacro flymake-posframe--determine-frontend (pos-tip-body posframe-body)
+  "Execute POS-TIP-BODY if `flymake-posframe-frontend' is `pos-tip', or run POSFRAME-BODY if `flymake-posframe-frontend' is `posframe'."
+  (cond
+   ((equal flymake-posframe-frontend 'pos-tip) `(,@pos-tip-body))
+   ((equal flymake-posframe-frontend 'posframe) `(,@posframe-body))))
+
 (defun flymake-posframe--show ()
   "Show error information at point."
   (let ((error-list (flymake-posframe--get-error)))
@@ -136,14 +149,20 @@ Return a list of errors found between BEG and END.
       ;; first update output buffer
       (flymake-posframe--write-to-buffer error-list)
       ;; display
-      (posframe-show
-       flymake-posframe-buffer
-       :position (point)
-       :timeout flymake-posframe-timeout
-       :internal-border-width 1
-       :internal-border-color "gray80"
-       :left-fringe 1
-       :right-fringe 1)
+      ;; TODO allow customization on various parameters
+      (flymake-posframe--determine-frontend
+       (pos-tip-show
+        (with-current-buffer  flymake-posframe-buffer
+          (buffer-string)))
+       (posframe-show
+        flymake-posframe-buffer
+        :position (point)
+        :timeout flymake-posframe-timeout
+        :internal-border-width 1
+        :internal-border-color "gray80"
+        :left-fringe 1
+        :right-fringe 1))
+      
       
       ;; update position info
       (setq-local flymake-posframe--error-line
@@ -168,7 +187,9 @@ Only need to run once.  Once run, remove itself from the hooks"
 
   ;; if move cursor, hide posframe
   (unless (eq (point) flymake-posframe--error-pos)
-    (posframe-hide flymake-posframe-buffer)
+    (flymake-posframe--determine-frontend
+     (pos-tip-hide)
+     (posframe-hide flymake-posframe-buffer))
 
     (dolist (hook flymake-posframe-hide-posframe-hooks)
       (remove-hook hook #'flymake-posframe-hide))))
