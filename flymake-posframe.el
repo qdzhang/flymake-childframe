@@ -129,20 +129,25 @@ Return a list of errors found between BEG and END.
       (erase-buffer)
       (insert (flymake-posframe--format-info error-list))))
 
-;; TODO: make this customizable
-(defun flymake-posframe--predicates (error-list)
-  "A set of conditions under which flymake-posframe make and show posframe."
-  (and (posframe-workable-p)
-       error-list
-       (null (evil-insert-state-p))
-       (null (eq (flymake-posframe--get-current-line)
-                 flymake-posframe--error-line))))
-
 (defmacro flymake-posframe--determine-frontend (pos-tip-body posframe-body)
   "Execute POS-TIP-BODY if `flymake-posframe-frontend' is `pos-tip', or run POSFRAME-BODY if `flymake-posframe-frontend' is `posframe'."
   (cond
    ((equal flymake-posframe-frontend 'pos-tip) `(,@pos-tip-body))
    ((equal flymake-posframe-frontend 'posframe) `(,@posframe-body))))
+
+;; TODO: make this customizable
+(defun flymake-posframe--predicates (error-list)
+  "A set of conditions under which flymake-posframe make and show posframe."
+  (flymake-posframe--determine-frontend
+   (and error-list
+        (null (evil-insert-state-p))
+        (null (eq (flymake-posframe--get-current-line)
+                  flymake-posframe--error-line)))
+  (and (posframe-workable-p)
+       error-list
+       (null (evil-insert-state-p))
+       (null (eq (flymake-posframe--get-current-line)
+                 flymake-posframe--error-line)))))
 
 (defun flymake-posframe--show ()
   "Show error information at point."
@@ -154,7 +159,8 @@ Return a list of errors found between BEG and END.
       ;; TODO allow customization on various parameters
       (flymake-posframe--determine-frontend
        (pos-tip-show
-        (with-current-buffer  flymake-posframe-buffer
+        (with-current-buffer
+            flymake-posframe-buffer
           (buffer-string)))
        (posframe-show
         flymake-posframe-buffer
