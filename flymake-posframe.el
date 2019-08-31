@@ -30,6 +30,8 @@
 ;;; Code:
 
 (require 'flymake)
+(require 'pos-tip)
+(require 'posframe)
 
 (defgroup flymake-posframe nil
   "Group for customize flymake posframe."
