@@ -163,7 +163,8 @@ Return a list of errors found between BEG and END.
        (pos-tip-show
         (with-current-buffer
             flymake-posframe-buffer
-          (buffer-string)))
+          (buffer-string))
+        nil nil flymake-posframe-timeout)
        (posframe-show
         flymake-posframe-buffer
         :position (point)
