@@ -44,36 +44,34 @@
   :type 'integer)
 
 (defcustom flymake-posframe-prefix
-  (let ((hash (make-hash-table :test 'equal)))
-    (puthash ':note "\uf29c" hash)
-    (puthash ':warning "\uf06a" hash)
-    (puthash ':error "\uf06a" hash)
-    (puthash 'eglot-note "\uf29c" hash)
-    (puthash 'eglot-warning "\uf06a" hash)
-    (puthash 'eglpt-error "\uf06a" hash)
-    hash)
-  "Prefix hash table for flymake-posframe."
+  '((note . "?")
+    (warning . "!")
+    (error . "!!"))
+  "Prefix to different messages types."
   :group 'flymake-posframe
-  :type 'hash-table)
+  :type 'list)
 
 (defcustom flymake-posframe-face
-  (let ((hash (make-hash-table :test 'equal)))
-    (puthash 'eglot-note 'default hash)
-    (puthash 'eglot-warning 'warning hash)
-    (puthash 'eglot-error 'error hash)
-    (puthash ':note 'default hash)
-    (puthash ':warning 'warning hash)
-    (puthash ':error 'error hash)
-    hash)
-  "Faces for error information displayed by flymake-posframe."
+  '((note . default)
+    (warning . warning)
+    (error . error))
+  "Faces for different messages types."
   :group 'flymake-posframe
-  :type 'hash-table)
+  :type 'list)
+
+(defcustom flymake-posframe-message-types
+  '(((:note eglot-note) . note)
+    ((:warning eglot-warning) . warning)
+    ((:error eglot-error) . error))
+  "Maps of flymake diagnostic types to message types."
+  :group 'flymake-posframe
+  :type 'list)
 
 (defvar flymake-posframe-hide-posframe-hooks
   '(pre-command-hook post-command-hook focus-out-hook)
   "When one of these event happens, hide posframe buffer.")
 
-(defvar flymake-posframe-buffer "*flymake-posframe-buffer*"
+(defvar flymake-posframe-buffer " *flymake-posframe-buffer*"
   "Buffer to store linter information.")
 
 (defvar-local flymake-posframe--error-pos 0
@@ -87,10 +85,7 @@
   (string-to-number (format-mode-line "%l")))
 
 (defun flymake-posframe--get-error (&optional beg end)
-  "Get `flymake--diag' between BEG and END, if they are not provided, use `line-beginning-position' and `line-end-position'.
-
-Return a list of errors found between BEG and END.
-"
+  "Get `flymake--diag' between BEG and END, if they are not provided, use `line-beginning-position' and `line-end-position'.  Return a list of errors found between BEG and END."
   (let* ((beg (or beg (line-beginning-position)))
          (end (or end (line-end-position)))
          (error-list (flymake--overlays
@@ -98,13 +93,24 @@ Return a list of errors found between BEG and END.
                       :end end)))
     error-list))
 
+(defun flymake-posframe--get-message-type (type property)
+  "Get PROPERTY of flymake diagnostic type TYPE.  PROPERTY can be 'face or 'prefix."
+  (let ((key (seq-some
+              (lambda (cell)
+                (when (memq type (car cell))
+                  (cdr cell)))
+              flymake-posframe-message-types)))
+   (alist-get key (symbol-value
+                   (intern (format "flymake-posframe-%s" (symbol-name property)))))))
+
 (defun flymake-posframe--format-one (err)
   "Format ERR for display."
- (let* ((type (flymake-diagnostic-type err))
-           (text (flymake-diagnostic-text err))
-           (prefix (gethash type flymake-posframe-prefix))
-           (face (gethash type flymake-posframe-face)))
-      (propertize (format "%s%s" prefix text) 'face face)))
+  (let* ((type (flymake-diagnostic-type err))
+         (text (flymake-diagnostic-text err))
+         (prefix (flymake-posframe--get-message-type type 'prefix))
+         (face (flymake-posframe--get-message-type type 'face)))
+    ;; HACK posframe eats the last char, add a space in the end of the message
+    (propertize (format "%s %s " prefix text) 'face face)))
 
 (defun flymake-posframe--format-info (error-list)
   "Format the information from ERROR-LIST."
@@ -119,10 +125,10 @@ Return a list of errors found between BEG and END.
   "Format information of ERROR-LIST and put it into `flymake-posframe-buffer'.  If no `flymake-posframe-buffer', make one."
     (with-current-buffer (get-buffer-create flymake-posframe-buffer)
       (erase-buffer)
-      (insert (flymake-posframe--format-info error-list))))
+      (insert (flymake-posframe--format-info error-list) "\n")))
 
 ;; TODO: make this customizable
-(defun flymake-posframe--predicates (error-list)
+(defun flymake-posframe--workable? (error-list)
   "A set of conditions under which flymake-posframe make and show posframe."
   (and (posframe-workable-p)
        error-list
@@ -133,12 +139,11 @@ Return a list of errors found between BEG and END.
 (defun flymake-posframe--show ()
   "Show error information at point."
   (let ((error-list (flymake-posframe--get-error)))
-    (when (flymake-posframe--predicates error-list)
-      ;; first update output buffer
-      (flymake-posframe--write-to-buffer error-list)
+    (when (flymake-posframe--workable? error-list)
       ;; display
       (posframe-show
        flymake-posframe-buffer
+       :string (flymake-posframe--format-info error-list)
        :position (point)
        :timeout flymake-posframe-timeout
        :internal-border-width 1
@@ -155,13 +160,11 @@ Return a list of errors found between BEG and END.
       (dolist (hook flymake-posframe-hide-posframe-hooks)
         (add-hook hook #'flymake-posframe-hide)))))
 
-;;;###autoload
 (defun flymake-posframe-show ()
   "Show error information delaying for `flymake-posframe-delay' second."
   (run-at-time flymake-posframe-delay nil
                #'flymake-posframe--show))
 
-;;;###autoload
 (defun flymake-posframe-hide ()
   "Hide error information.
 
