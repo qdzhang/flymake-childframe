@@ -176,8 +176,8 @@
 
 (defun flymake-childframe--show ()
   "Show error information at point."
-  (when-let* ((error-list (flymake-childframe--get-error))
-              (_ (flymake-childframe--show-p error-list)))
+  (when-let ((error-list (flymake-childframe--get-error))
+             ((flymake-childframe--show-p error-list)))
 
     ;; First update buffer information
     (with-current-buffer (get-buffer-create flymake-childframe--buffer)
@@ -201,7 +201,7 @@
 
     ;; move frame to desirable position
     (let ((pos (window-absolute-pixel-position)))
-     (set-frame-position flymake-childframe--frame (car pos) (cdr pos)))
+      (set-frame-position flymake-childframe--frame (car pos) (cdr pos)))
     (set-face-background 'internal-border "gray80" flymake-childframe--frame)
 
     ;; set hooks
