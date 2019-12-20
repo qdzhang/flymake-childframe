@@ -194,11 +194,11 @@
     ;; Then create frame if needed
     (unless (frame-live-p flymake-childframe--frame)
       (setq flymake-childframe--frame
-            (make-frame flymake-childframe--init-parameters))
+            (make-frame flymake-childframe--init-parameters)))
 
-      (with-selected-frame flymake-childframe--frame
-        (delete-other-windows)
-        (switch-to-buffer flymake-childframe--buffer)))
+    (with-selected-frame flymake-childframe--frame
+      (delete-other-windows)
+      (switch-to-buffer flymake-childframe--buffer))
 
     ;; move frame to desirable position
     (apply 'set-frame-position
