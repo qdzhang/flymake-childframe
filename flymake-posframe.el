@@ -1,9 +1,9 @@
-;;; flymake-posframe.el --- posframe support for Flymake -*- lexical-binding: t; -*-
+;;; flymake-childframe.el --- childframe frontend to display Flymake message -*- lexical-binding: t; -*-
 
 ;; Author: Junyi Hou <junyi.yi.hou@gmail.com>
 ;; Maintainer: Junyi Hou <junyi.yi.hou@gmail.com>
-;; Version: 0.1
-;; Package-requires: ((emacs "26") (posframe "0.3.0"))
+;; Version: 0.2
+;; Package-requires: ((emacs "26"))
 
 
 ;; This file is not part of GNU Emacs.
@@ -25,66 +25,101 @@
 
 ;;; Code:
 
-(require 'posframe)
 (require 'flymake)
 
-(defgroup flymake-posframe nil
+(defgroup flymake-childframe nil
   "Group for customize flymake posframe."
   :group 'flymake
-  :prefix "flymake-posframe-")
+  :prefix "flymake-childframe-")
 
-(defcustom flymake-posframe-delay 1
+(defcustom flymake-childframe-delay 1
   "Number of seconds before the posframe pops up."
-  :group 'flymake-posframe
+  :group 'flymake-childframe
   :type 'integer)
 
-(defcustom flymake-posframe-timeout nil
+(defcustom flymake-childframe-timeout nil
   "Number of seconds to close the posframe."
-  :group 'flymake-posframe
+  :group 'flymake-childframe
   :type 'integer)
 
-(defcustom flymake-posframe-prefix
+(defcustom flymake-childframe-prefix
   '((note . "?")
     (warning . "!")
     (error . "!!"))
   "Prefix to different messages types."
-  :group 'flymake-posframe
+  :group 'flymake-childframe
   :type 'list)
 
-(defcustom flymake-posframe-face
+(defcustom flymake-childframe-face
   '((note . default)
     (warning . warning)
     (error . error))
   "Faces for different messages types."
-  :group 'flymake-posframe
+  :group 'flymake-childframe
   :type 'list)
 
-(defcustom flymake-posframe-message-types
+(defcustom flymake-childframe-message-types
   '(((:note eglot-note) . note)
     ((:warning eglot-warning) . warning)
     ((:error eglot-error) . error))
   "Maps of flymake diagnostic types to message types."
-  :group 'flymake-posframe
+  :group 'flymake-childframe
   :type 'list)
 
-(defvar flymake-posframe-hide-posframe-hooks
+(defcustom flymake-childframe-hide-posframe-hooks
   '(pre-command-hook post-command-hook focus-out-hook)
-  "When one of these event happens, hide posframe buffer.")
+  "When one of these event happens, hide posframe buffer."
+  :type 'list
+  :group 'flymake-childframe)
 
-(defvar flymake-posframe-buffer " *flymake-posframe-buffer*"
+(defcustom flymake-childframe-show-conditions
+  '((null (evil-insert-state-p))
+    (null (eq (flymake-childframe--get-current-line)
+              flymake-childframe--error-line)))
+  "A list of conditions under which `flymake-childframe' should pop error message."
+  :type 'list
+  :group 'flymake-childframe)
+
+(defcustom flymake-childframe-maximum-frame-width 60
+  "The maximum width (in column) allowed for the frame."
+  :type 'integer
+  :group 'flymake-childframe)
+
+(defconst flymake-childframe--buffer " *flymake-childframe-buffer*"
   "Buffer to store linter information.")
 
-(defvar-local flymake-posframe--error-pos 0
+(defvar flymake-childframe--frame nil
+  "Frame to display linter information.")
+
+(defvar-local flymake-childframe--error-pos 0
   "The current cursor position.")
 
-(defvar-local flymake-posframe--error-line 0
+(defvar-local flymake-childframe--error-line 0
   "The current line number")
 
-(defun flymake-posframe--get-current-line ()
+(defconst flymake-childframe--init-parameters
+  '((parent-frame . (window-frame))
+    (skip-taskbar . t)
+    (minibuffer . nil)
+    (visibility . nil)
+    (left-fringe . 3)
+    (right-fringe . 3)
+    (internal-border-width . 1)
+    (vertical-scroll-bars . nil)
+    (horizontal-scroll-bars . nil)
+    (undecorated . t)
+    (header-line-format . nil)
+    (menu-bar-lines . 0)
+    (mode-line-format . nil)
+    (unsplittable . t)
+    (bottom-divider-width . 2))
+  "The initial frame parameters for `flymake-posframe--frame'")
+
+(defun flymake-childframe--get-current-line ()
   "Return the current line number at point."
   (string-to-number (format-mode-line "%l")))
 
-(defun flymake-posframe--get-error (&optional beg end)
+(defun flymake-childframe--get-error (&optional beg end)
   "Get `flymake--diag' between BEG and END, if they are not provided, use `line-beginning-position' and `line-end-position'.  Return a list of errors found between BEG and END."
   (let* ((beg (or beg (line-beginning-position)))
          (end (or end (line-end-position)))
@@ -93,107 +128,127 @@
                       :end end)))
     error-list))
 
-(defun flymake-posframe--get-message-type (type property)
+(defun flymake-childframe--get-message-type (type property)
   "Get PROPERTY of flymake diagnostic type TYPE.  PROPERTY can be 'face or 'prefix."
   (let ((key (seq-some
               (lambda (cell)
                 (when (memq type (car cell))
                   (cdr cell)))
-              flymake-posframe-message-types)))
+              flymake-childframe-message-types)))
    (alist-get key (symbol-value
-                   (intern (format "flymake-posframe-%s" (symbol-name property)))))))
+                   (intern (format "flymake-childframe-%s" (symbol-name property)))))))
 
-(defun flymake-posframe--format-one (err)
+(defun flymake-childframe--format-one (err)
   "Format ERR for display."
   (let* ((type (flymake-diagnostic-type err))
          (text (flymake-diagnostic-text err))
-         (prefix (flymake-posframe--get-message-type type 'prefix))
-         (face (flymake-posframe--get-message-type type 'face)))
-    ;; HACK posframe eats the last char, add a space in the end of the message
-    (propertize (format "%s %s " prefix text) 'face face)))
+         (prefix (flymake-childframe--get-message-type type 'prefix))
+         (face (flymake-childframe--get-message-type type 'face)))
+    (propertize (format "%s %s" prefix text) 'face face)))
 
-(defun flymake-posframe--format-info (error-list)
+(defun flymake-childframe--format-info (error-list)
   "Format the information from ERROR-LIST."
   (let* ((err (overlay-get (car error-list) 'flymake-diagnostic))
          (error-list (cdr error-list))
-         (out (flymake-posframe--format-one err)))
+         (out (flymake-childframe--format-one err)))
     (if error-list
-        (concat out "\n" (flymake-posframe--format-info error-list))
+        (concat out "\n" (flymake-childframe--format-info error-list))
       out)))
 
-(defun flymake-posframe--write-to-buffer (error-list)
-  "Format information of ERROR-LIST and put it into `flymake-posframe-buffer'.  If no `flymake-posframe-buffer', make one."
-    (with-current-buffer (get-buffer-create flymake-posframe-buffer)
-      (erase-buffer)
-      (insert (flymake-posframe--format-info error-list) "\n")))
+(defun flymake-childframe--set-frame-size (height width)
+  "Set `flymake-chldframe--frame' size based on the content in `flymake-childframe--buffer'."
+  (let ((current-width (- (line-end-position) (line-beginning-position)))
+        new-height new-width)
+    (if (> current-width flymake-childframe-maximum-frame-width)
+        (setq new-width flymake-childframe-maximum-frame-width
+              new-height (+ 2 height))
+      (setq new-width (max width current-width)
+            new-height (1+ height)))
+    (if (= (line-number-at-pos (point)) 1)
+        `((width . ,new-width)
+          (height . ,new-height))
+      (line-move -1)
+      (flymake-childframe--set-frame-size new-height new-width))))
 
-;; TODO: make this customizable
-(defun flymake-posframe--workable? (error-list)
-  "A set of conditions under which flymake-posframe make and show posframe."
-  (and (posframe-workable-p)
-       error-list
-       (null (evil-insert-state-p))
-       (null (eq (flymake-posframe--get-current-line)
-                 flymake-posframe--error-line))))
+(defun flymake-childframe--show-p (error-list)
+  "A set of conditions under which flymake-childframe make and show posframe."
+  (eval `(and ,error-list ,@flymake-childframe-show-conditions)))
 
-(defun flymake-posframe--show ()
+(defun flymake-childframe--show ()
   "Show error information at point."
-  (let ((error-list (flymake-posframe--get-error)))
-    (when (flymake-posframe--workable? error-list)
-      ;; display
-      (posframe-show
-       flymake-posframe-buffer
-       :string (flymake-posframe--format-info error-list)
-       :position (point)
-       :timeout flymake-posframe-timeout
-       :internal-border-width 1
-       :internal-border-color "gray80"
-       :left-fringe 1
-       :right-fringe 1)
-      
-      ;; update position info
-      (setq-local flymake-posframe--error-line
-                  (flymake-posframe--get-current-line))
-      (setq-local flymake-posframe--error-pos (point))
+  (when-let* ((error-list (flymake-childframe--get-error))
+              (_ (flymake-childframe--show-p error-list)))
 
-      ;; setup remove hook
-      (dolist (hook flymake-posframe-hide-posframe-hooks)
-        (add-hook hook #'flymake-posframe-hide)))))
+    ;; First update buffer information
+    (with-current-buffer (get-buffer-create flymake-childframe--buffer)
+      (erase-buffer)
+      (insert (flymake-childframe--format-info error-list))
+      (setq-local cursor-type nil)
+      (setq-local cursor-in-non-selected-windows nil)
+      (setq-local mode-line-format nil)
+      (setq-local header-line-format nil))
 
-(defun flymake-posframe-show ()
-  "Show error information delaying for `flymake-posframe-delay' second."
-  (run-at-time flymake-posframe-delay nil
-               #'flymake-posframe--show))
+    ;; need to calculate the appropriate size of the childframe
 
-(defun flymake-posframe-hide ()
-  "Hide error information.
+    ;; Then create frame
+    (setq flymake-childframe--frame
+          (make-frame (append flymake-childframe--init-parameters
+                              (with-current-buffer flymake-childframe--buffer
+                                (flymake-childframe--set-frame-size 0 0)))))
 
-Only need to run once.  Once run, remove itself from the hooks"
+    (with-selected-frame flymake-childframe--frame
+      (switch-to-buffer flymake-childframe--buffer))
 
-  ;; if move cursor, hide posframe
-  (unless (eq (point) flymake-posframe--error-pos)
-    (posframe-hide flymake-posframe-buffer)
+    ;; move frame to desirable position
+    (let ((pos (window-absolute-pixel-position)))
+     (set-frame-position flymake-childframe--frame (car pos) (cdr pos)))
+    (set-face-background 'internal-border "gray80" flymake-childframe--frame)
 
+    ;; set hooks
+    ;; update position info
+    (setq-local flymake-posframe--error-line
+                (flymake-posframe--get-current-line))
+    (setq-local flymake-posframe--error-pos (point))
+
+    ;; setup remove hook
     (dolist (hook flymake-posframe-hide-posframe-hooks)
-      (remove-hook hook #'flymake-posframe-hide))))
+      (add-hook hook #'flymake-posframe-hide))
 
-;; reset `flymake-posframe--error-line' if move to another line
-(add-hook 'post-command-hook
-          (defun flymake-posframe-update-error-line ()
-              (unless (eq (flymake-posframe--get-current-line)
-                          flymake-posframe--error-line)
-                (setq-local flymake-posframe--error-line 0))))
+    ;; finally show frame
+    (make-frame-visible eglot-childframe--frame)))
+
+(defun flymake-childframe-show ()
+  "Show error information delaying for `flymake-childframe-delay' second."
+  (run-at-time flymake-childframe-delay nil
+               #'flymake-childframe--show))
+
+(defun flymake-childframe-hide ()
+  "Hide error information.  Only need to run once.  Once run, remove itself from the hooks"
+  ;; if move cursor, hide posframe
+  (unless (eq (point) flymake-childframe--error-pos)
+    (delete-frame flymake-childframe--frame)
+
+    (dolist (hook flymake-childframe-hide-posframe-hooks)
+      (remove-hook hook #'flymake-childframe-hide))))
+
+(defun flymake-childframe-reset-error-line ()
+  "Reset the line number for current error to 0."
+  (unless (eq (flymake-childframe--get-current-line)
+              flymake-childframe--error-line)
+    (setq-local flymake-childframe--error-line 0)))
 
 ;;;###autoload
-(define-minor-mode flymake-posframe-mode
+(define-minor-mode flymake-childframe-mode
   "A minor mode to display flymake error message in a posframe."
   :lighter nil
-  :group flymake-posframe
+  :group flymake-childframe
   (cond
-   (flymake-posframe-mode
-    (add-hook 'post-command-hook #'flymake-posframe-show nil 'local))
-   (t
-    (remove-hook 'post-command-hook #'flymake-posframe-show 'local))))
+   (flymake-childframe-mode
+    (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
+    (add-hook 'post-command-hook #'flymake-childframe-update-error-line nil 'local)
+    )
+   (t (remove-hook 'post-command-hook #'flymake-childframe-show 'local)
+      (remove-hook 'post-command-hook #'flymake-childframe-update-error-line 'local))))
 
-(provide 'flymake-posframe)
-;;; flymake-posframe.el ends here
+(provide 'flymake-childframe)
+;;; flymake-childframe.el ends here
