@@ -243,10 +243,8 @@
   :lighter nil
   :group flymake-childframe
   (cond
-   (flymake-childframe-mode
-    (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
-    (add-hook 'post-command-hook #'flymake-childframe-update-error-line nil 'local)
-    )
+   (flymake-childframe-mode (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
+                            (add-hook 'post-command-hook #'flymake-childframe-update-error-line nil 'local))
    (t (remove-hook 'post-command-hook #'flymake-childframe-show 'local)
       (remove-hook 'post-command-hook #'flymake-childframe-update-error-line 'local))))
 
