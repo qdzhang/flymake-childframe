@@ -28,17 +28,17 @@
 (require 'flymake)
 
 (defgroup flymake-childframe nil
-  "Group for customize flymake posframe."
+  "Group for customize flymake childframe."
   :group 'flymake
   :prefix "flymake-childframe-")
 
 (defcustom flymake-childframe-delay 1
-  "Number of seconds before the posframe pops up."
+  "Number of seconds before the childframe pops up."
   :group 'flymake-childframe
   :type 'integer)
 
 (defcustom flymake-childframe-timeout nil
-  "Number of seconds to close the posframe."
+  "Number of seconds to close the childframe."
   :group 'flymake-childframe
   :type 'integer)
 
@@ -66,9 +66,9 @@
   :group 'flymake-childframe
   :type 'list)
 
-(defcustom flymake-childframe-hide-posframe-hooks
+(defcustom flymake-childframe-hide-childframe-hooks
   '(pre-command-hook post-command-hook focus-out-hook)
-  "When one of these event happens, hide posframe buffer."
+  "When one of these event happens, hide chlidframe buffer."
   :type 'list
   :group 'flymake-childframe)
 
@@ -78,11 +78,6 @@
               flymake-childframe--error-line)))
   "A list of conditions under which `flymake-childframe' should pop error message."
   :type 'list
-  :group 'flymake-childframe)
-
-(defcustom flymake-childframe-maximum-frame-width 60
-  "The maximum width (in column) allowed for the frame."
-  :type 'integer
   :group 'flymake-childframe)
 
 (defconst flymake-childframe--buffer " *flymake-childframe-buffer*"
@@ -102,8 +97,10 @@
     (skip-taskbar . t)
     (minibuffer . nil)
     (visibility . nil)
-    (left-fringe . 3)
-    (right-fringe . 3)
+    (left-fringe . 0)
+    (right-fringe . 0)
+    (min-width . 1)
+    (min-height . 1)
     (internal-border-width . 1)
     (vertical-scroll-bars . nil)
     (horizontal-scroll-bars . nil)
@@ -111,9 +108,8 @@
     (header-line-format . nil)
     (menu-bar-lines . 0)
     (mode-line-format . nil)
-    (unsplittable . t)
-    (bottom-divider-width . 2))
-  "The initial frame parameters for `flymake-posframe--frame'")
+    (unsplittable . t))
+  "The initial frame parameters for `flymake-childframe--frame'")
 
 (defun flymake-childframe--get-current-line ()
   "Return the current line number at point."
@@ -135,8 +131,8 @@
                 (when (memq type (car cell))
                   (cdr cell)))
               flymake-childframe-message-types)))
-   (alist-get key (symbol-value
-                   (intern (format "flymake-childframe-%s" (symbol-name property)))))))
+    (alist-get key (symbol-value
+                    (intern (format "flymake-childframe-%s" (symbol-name property)))))))
 
 (defun flymake-childframe--format-one (err)
   "Format ERR for display."
@@ -157,22 +153,29 @@
 
 (defun flymake-childframe--set-frame-size (height width)
   "Set `flymake-chldframe--frame' size based on the content in `flymake-childframe--buffer'."
-  (let ((current-width (- (line-end-position) (line-beginning-position)))
-        new-height new-width)
-    (if (> current-width flymake-childframe-maximum-frame-width)
-        (setq new-width flymake-childframe-maximum-frame-width
-              new-height (+ 2 height))
+  (with-current-buffer flymake-childframe--buffer
+    (let ((current-width (- (line-end-position) (line-beginning-position)))
+          new-height new-width)
       (setq new-width (max width current-width)
-            new-height (1+ height)))
-    (if (= (line-number-at-pos (point)) 1)
-        `((width . ,new-width)
-          (height . ,new-height))
-      (line-move -1)
-      (flymake-childframe--set-frame-size new-height new-width))))
+            new-height (1+ height))
+      (if (= (line-number-at-pos (point)) 1)
+          `(,(+ new-width 2) 1)
+        (line-move -1)
+        (flymake-childframe--set-frame-size new-height new-width)))))
+
+(defun flymake-chlidframe--set-frame-position ()
+  "Determine frame position."
+  (let* ((x (car (window-absolute-pixel-position)))
+         (y (cdr (window-absolute-pixel-position)))
+         (off-set (- (+ x (frame-pixel-width flymake-childframe--frame))
+                     (frame-pixel-width))))
+    (if (> off-set 0)
+        `(,(- x off-set) ,(+ y (default-font-height)))
+      `(,x ,(+ y (default-font-height))))))
 
 (defun flymake-childframe--show-p (error-list)
-  "A set of conditions under which flymake-childframe make and show posframe."
-  (eval `(and ,error-list ,@flymake-childframe-show-conditions)))
+  "A set of conditions under which flymake-childframe make and show childframe."
+  (eval `(and ,@error-list ,@flymake-childframe-show-conditions)))
 
 (defun flymake-childframe--show ()
   "Show error information at point."
@@ -188,34 +191,34 @@
       (setq-local mode-line-format nil)
       (setq-local header-line-format nil))
 
-    ;; need to calculate the appropriate size of the childframe
-
     ;; Then create frame
     (setq flymake-childframe--frame
-          (make-frame (append flymake-childframe--init-parameters
-                              (with-current-buffer flymake-childframe--buffer
-                                (flymake-childframe--set-frame-size 0 0)))))
+          (make-frame flymake-childframe--init-parameters))
 
     (with-selected-frame flymake-childframe--frame
+      (delete-other-windows)
+      (visual-line-mode 1)
       (switch-to-buffer flymake-childframe--buffer))
 
     ;; move frame to desirable position
-    (let ((pos (window-absolute-pixel-position)))
-      (set-frame-position flymake-childframe--frame (car pos) (cdr pos)))
+    (apply 'set-frame-position
+           `(,flymake-childframe--frame ,@(flymake-chlidframe--set-frame-position)))
+    (apply 'set-frame-size
+           `(,flymake-childframe--frame ,@(flymake-childframe--set-frame-size 0 0)))
     (set-face-background 'internal-border "gray80" flymake-childframe--frame)
 
     ;; set hooks
     ;; update position info
-    (setq-local flymake-posframe--error-line
-                (flymake-posframe--get-current-line))
-    (setq-local flymake-posframe--error-pos (point))
+    (setq-local flymake-childframe--error-line
+                (flymake-childframe--get-current-line))
+    (setq-local flymake-childframe--error-pos (point))
 
     ;; setup remove hook
-    (dolist (hook flymake-posframe-hide-posframe-hooks)
-      (add-hook hook #'flymake-posframe-hide))
+    (dolist (hook flymake-childframe-hide-childframe-hooks)
+      (add-hook hook #'flymake-childframe-hide))
 
     ;; finally show frame
-    (make-frame-visible eglot-childframe--frame)))
+    (make-frame-visible flymake-childframe--frame)))
 
 (defun flymake-childframe-show ()
   "Show error information delaying for `flymake-childframe-delay' second."
@@ -223,12 +226,12 @@
                #'flymake-childframe--show))
 
 (defun flymake-childframe-hide ()
-  "Hide error information.  Only need to run once.  Once run, remove itself from the hooks"
-  ;; if move cursor, hide posframe
+  "Hide error information.  Only need to run once.  Once run, remove itself from the hooks."
+  ;; if move cursor, hide childframe
   (unless (eq (point) flymake-childframe--error-pos)
     (delete-frame flymake-childframe--frame)
 
-    (dolist (hook flymake-childframe-hide-posframe-hooks)
+    (dolist (hook flymake-childframe-hide-childframe-hooks)
       (remove-hook hook #'flymake-childframe-hide))))
 
 (defun flymake-childframe-reset-error-line ()
@@ -239,14 +242,14 @@
 
 ;;;###autoload
 (define-minor-mode flymake-childframe-mode
-  "A minor mode to display flymake error message in a posframe."
+  "A minor mode to display flymake error message in a childframe."
   :lighter nil
   :group flymake-childframe
   (cond
    (flymake-childframe-mode (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
-                            (add-hook 'post-command-hook #'flymake-childframe-update-error-line nil 'local))
+                            (add-hook 'post-command-hook #'flymake-childframe-reset-error-line nil 'local))
    (t (remove-hook 'post-command-hook #'flymake-childframe-show 'local)
-      (remove-hook 'post-command-hook #'flymake-childframe-update-error-line 'local))))
+      (remove-hook 'post-command-hook #'flymake-childframe-reset-error-line 'local))))
 
 (provide 'flymake-childframe)
 ;;; flymake-childframe.el ends here
