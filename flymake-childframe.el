@@ -191,14 +191,14 @@
       (setq-local mode-line-format nil)
       (setq-local header-line-format nil))
 
-    ;; Then create frame
-    (setq flymake-childframe--frame
-          (make-frame flymake-childframe--init-parameters))
+    ;; Then create frame if needed
+    (unless (frame-live-p flymake-childframe--frame)
+      (setq flymake-childframe--frame
+            (make-frame flymake-childframe--init-parameters))
 
-    (with-selected-frame flymake-childframe--frame
-      (delete-other-windows)
-      (visual-line-mode 1)
-      (switch-to-buffer flymake-childframe--buffer))
+      (with-selected-frame flymake-childframe--frame
+        (delete-other-windows)
+        (switch-to-buffer flymake-childframe--buffer)))
 
     ;; move frame to desirable position
     (apply 'set-frame-position
@@ -229,7 +229,7 @@
   "Hide error information.  Only need to run once.  Once run, remove itself from the hooks."
   ;; if move cursor, hide childframe
   (unless (eq (point) flymake-childframe--error-pos)
-    (delete-frame flymake-childframe--frame)
+    (make-frame-invisible flymake-childframe--frame)
 
     (dolist (hook flymake-childframe-hide-childframe-hooks)
       (remove-hook hook #'flymake-childframe-hide))))
