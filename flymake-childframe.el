@@ -180,6 +180,7 @@
 (defun flymake-childframe--show ()
   "Show error information at point."
   (when-let ((error-list (flymake-childframe--get-error))
+             (current-window (selected-window))
              ((flymake-childframe--show-p error-list)))
 
     ;; First update buffer information
@@ -198,7 +199,9 @@
 
     (with-selected-frame flymake-childframe--frame
       (delete-other-windows)
-      (switch-to-buffer flymake-childframe--buffer))
+      (switch-to-buffer flymake-childframe--buffer)
+      (when (featurep 'doom-modeline)
+        (setq doom-modeline-current-window current-window)))
 
     ;; move frame to desirable position
     (apply 'set-frame-position
@@ -206,6 +209,9 @@
     (apply 'set-frame-size
            `(,flymake-childframe--frame ,@(flymake-childframe--set-frame-size 0 0)))
     (set-face-background 'internal-border "gray80" flymake-childframe--frame)
+
+    (redirect-frame-focus flymake-childframe--frame
+                          (frame-parent flymake-childframe--frame))
 
     ;; set hooks
     ;; update position info
