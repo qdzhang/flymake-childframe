@@ -168,7 +168,7 @@
   (let* ((x (car (window-absolute-pixel-position)))
          (y (cdr (window-absolute-pixel-position)))
          (off-set (- (+ x (frame-pixel-width flymake-childframe--frame))
-                     (frame-pixel-width))))
+                     (nth 2 (frame-edges)))))
     (if (> off-set 0)
         `(,(- x off-set) ,(+ y (default-font-height)))
       `(,x ,(+ y (default-font-height))))))
