@@ -2,7 +2,7 @@
 
 ;; Author: Junyi Hou <junyi.yi.hou@gmail.com>
 ;; Maintainer: Junyi Hou <junyi.yi.hou@gmail.com>
-;; Version: 0.2
+;; Version: 0.0.3
 ;; Package-requires: ((emacs "26"))
 
 
@@ -77,7 +77,7 @@
     (null (eq (flymake-childframe--get-current-line)
               flymake-childframe--error-line)))
   "A list of conditions under which `flymake-childframe' should pop error message."
-  :type 'list
+  :type '(repeat boolean)
   :group 'flymake-childframe)
 
 (defconst flymake-childframe--buffer " *flymake-childframe-buffer*"
@@ -93,23 +93,38 @@
   "The current line number")
 
 (defconst flymake-childframe--init-parameters
-  '((parent-frame . (window-frame))
-    (skip-taskbar . t)
-    (minibuffer . nil)
-    (visibility . nil)
-    (left-fringe . 0)
-    (right-fringe . 0)
-    (min-width . 1)
-    (min-height . 1)
+  `((parent-frame . ,(selected-frame))
+
+    (left . -1)
+    (top . -1)
+    (width  . 0)
+    (height  . 0)
+
+    (no-accept-focus . t)
+    (no-focus-on-map . t)
+    (min-width . 0)
+    (min-height . 0)
     (internal-border-width . 1)
     (vertical-scroll-bars . nil)
     (horizontal-scroll-bars . nil)
-    (undecorated . t)
-    (header-line-format . nil)
+    (left-fringe . 0)
+    (right-fringe . 0)
     (menu-bar-lines . 0)
-    (mode-line-format . nil)
-    (unsplittable . t))
-  "The initial frame parameters for `flymake-childframe--frame'")
+    (tool-bar-lines . 0)
+    (line-spacing . 0)
+    (unsplittable . t)
+    (undecorated . t)
+    (visibility . nil)
+    (mouse-wheel-frame . nil)
+    (no-other-frame . t)
+    (cursor-type . nil)
+    (inhibit-double-buffering . t)
+    (drag-internal-border . t)
+    (no-special-glyphs . t)
+    (desktop-dont-save . t)
+    (skip-taskbar . t)
+    (minibuffer . nil))
+  "The initial frame parameters for `flymake-childframe--frame'.")
 
 (defun flymake-childframe--get-current-line ()
   "Return the current line number at point."
@@ -170,8 +185,8 @@
          (off-set (- (+ x (frame-pixel-width flymake-childframe--frame))
                      (nth 2 (frame-edges)))))
     (if (> off-set 0)
-        `(,(- x off-set) ,(+ y (default-font-height)))
-      `(,x ,(+ y (default-font-height))))))
+        `(,(- x off-set) ,(- y 30))
+      `(,x ,(- y 30)))))
 
 (defun flymake-childframe--show-p (error-list)
   "A set of conditions under which flymake-childframe make and show childframe."
@@ -193,7 +208,7 @@
       (setq-local header-line-format nil))
 
     ;; Then create frame if needed
-    (unless (frame-live-p flymake-childframe--frame)
+    (unless (and flymake-childframe--frame (frame-live-p flymake-childframe--frame))
       (setq flymake-childframe--frame
             (make-frame flymake-childframe--init-parameters)))
 
