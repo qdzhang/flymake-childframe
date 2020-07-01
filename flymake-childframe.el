@@ -80,6 +80,11 @@
   :type '(repeat boolean)
   :group 'flymake-childframe)
 
+(defcustom flymake-childframe-position-offset '(0 . 0)
+  "Pixel offset for `flymake-childframe--set-frame-position'. It should be a cons with x and y offset in car and cdr."
+  :type '(repeat number)
+  :group 'flymake-childframe)
+
 (defconst flymake-childframe--buffer " *flymake-childframe-buffer*"
   "Buffer to store linter information.")
 
@@ -180,13 +185,15 @@
 
 (defun flymake-chlidframe--set-frame-position ()
   "Determine frame position."
-  (let* ((x (car (window-absolute-pixel-position)))
-         (y (cdr (window-absolute-pixel-position)))
+  (let* ((x-orig (car (window-absolute-pixel-position)))
+         (y-orig (cdr (window-absolute-pixel-position)))
+         (x (+ x-orig (car flymake-childframe-position-offset)))
+         (y (+ y-orig (cdr flymake-childframe-position-offset)))
          (off-set (- (+ x (frame-pixel-width flymake-childframe--frame))
                      (nth 2 (frame-edges)))))
     (if (> off-set 0)
-        `(,(- x off-set) ,(- y 30))
-      `(,x ,(- y 30)))))
+        `(,(- x off-set) ,y)
+      `(,x ,y))))
 
 (defun flymake-childframe--show-p (error-list)
   "A set of conditions under which flymake-childframe make and show childframe."
@@ -224,6 +231,7 @@
     (apply 'set-frame-size
            `(,flymake-childframe--frame ,@(flymake-childframe--set-frame-size 0 0)))
     (set-face-background 'internal-border "gray80" flymake-childframe--frame)
+    (set-frame-parameter flymake-childframe--frame 'parent-frame (selected-frame))
 
     (redirect-frame-focus flymake-childframe--frame
                           (frame-parent flymake-childframe--frame))
