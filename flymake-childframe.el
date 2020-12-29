@@ -5,7 +5,6 @@
 ;; Version: 0.0.3
 ;; Package-requires: ((emacs "26"))
 
-
 ;; This file is not part of GNU Emacs.
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -226,12 +225,11 @@
         (setq doom-modeline-current-window current-window)))
 
     ;; move frame to desirable position
-    (apply 'set-frame-position
-           `(,flymake-childframe--frame ,@(flymake-chlidframe--set-frame-position)))
     (apply 'set-frame-size
            `(,flymake-childframe--frame ,@(flymake-childframe--set-frame-size 0 0)))
+    (apply 'set-frame-position
+           `(,flymake-childframe--frame ,@(flymake-chlidframe--set-frame-position)))
     (set-face-background 'internal-border "gray80" flymake-childframe--frame)
-    (set-frame-parameter flymake-childframe--frame 'parent-frame (selected-frame))
 
     (redirect-frame-focus flymake-childframe--frame
                           (frame-parent flymake-childframe--frame))
