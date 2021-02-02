@@ -97,9 +97,7 @@
   "The current line number")
 
 (defconst flymake-childframe--init-parameters
-  `((parent-frame . ,(selected-frame))
-
-    (left . -1)
+  '((left . -1)
     (top . -1)
     (width  . 0)
     (height  . 0)
@@ -202,7 +200,9 @@
   "Show error information at point."
   (when-let ((error-list (flymake-childframe--get-error))
              (current-window (selected-window))
-             ((flymake-childframe--show-p error-list)))
+             ((flymake-childframe--show-p error-list))
+             (frame-para `(,@flymake-childframe--init-parameters
+                           (parent-frame . ,(selected-frame)))))
 
     ;; First update buffer information
     (with-current-buffer (get-buffer-create flymake-childframe--buffer)
@@ -215,14 +215,11 @@
 
     ;; Then create frame if needed
     (unless (and flymake-childframe--frame (frame-live-p flymake-childframe--frame))
-      (setq flymake-childframe--frame
-            (make-frame flymake-childframe--init-parameters)))
+      (setq flymake-childframe--frame (make-frame frame-para)))
 
     (with-selected-frame flymake-childframe--frame
       (delete-other-windows)
-      (switch-to-buffer flymake-childframe--buffer)
-      (when (featurep 'doom-modeline)
-        (setq doom-modeline-current-window current-window)))
+      (switch-to-buffer flymake-childframe--buffer))
 
     ;; move frame to desirable position
     (apply 'set-frame-size
