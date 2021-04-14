@@ -173,7 +173,6 @@ Each element should be a function that takes exactly one argument (error-list, s
 
 (defun flymake-childframe--show ()
   "Show error information at point."
-  (interactive)
   (let* ((error-list (flymake-childframe--get-error)))
     (when (and error-list
                (run-hook-with-args-until-success 'flymake-childframe-show-conditions error-list))
@@ -242,7 +241,7 @@ Each element should be a function that takes exactly one argument (error-list, s
           ;; update width and height
           (setq width (max current-width width)
                 height (1+ height))))
-      `(,width ,height))))
+      `(,(1+ width) ,height))))
 
 (defun flymake-chlidframe--set-frame-position ()
   "Return the pixel position of `point', adjusted if the size of `flymake-childframe--frame' exceeds the boundary of the current frame."
