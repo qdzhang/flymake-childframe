@@ -46,29 +46,29 @@
     (warning . "!")
     (error . "!!"))
   "Prefix to different messages types."
-  :group 'flymake-childframe
-  :type 'list)
+  :type '(alist :key-type symbol :value-type string)
+  :group 'flymake-childframe)
 
 (defcustom flymake-childframe-face
   '((note . default)
     (warning . warning)
     (error . error))
   "Faces for different messages types."
-  :group 'flymake-childframe
-  :type 'list)
+  :type '(alist :key-type symbol :value-type face)
+  :group 'flymake-childframe)
 
 (defcustom flymake-childframe-message-types
   '(((:note eglot-note) . note)
     ((:warning eglot-warning) . warning)
     ((:error eglot-error) . error))
   "Maps of flymake diagnostic types to message types."
-  :group 'flymake-childframe
-  :type 'list)
+  :type '(alist :key-type (repeat symbol) :value-type face)
+  :group 'flymake-childframe)
 
 (defcustom flymake-childframe-hide-childframe-hooks
   '(pre-command-hook post-command-hook focus-out-hook)
   "When one of these event happens, hide chlidframe buffer."
-  :type 'list
+  :type '(repeat hook)
   :group 'flymake-childframe)
 
 (defcustom flymake-childframe-show-conditions
