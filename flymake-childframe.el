@@ -182,6 +182,8 @@ Each element should be a function that takes exactly one argument (error-list, s
 
         ;; First update buffer information
         (with-current-buffer (get-buffer-create flymake-childframe--buffer)
+          (unless (eq major-mode 'flymake-childframe-buffer-mode)
+            (flymake-childframe-buffer-mode))
           (erase-buffer)
           (insert (flymake-childframe--format-info error-list))
           (setq-local cursor-type nil)
@@ -219,6 +221,8 @@ Each element should be a function that takes exactly one argument (error-list, s
         ;; finally show frame
         (make-frame-visible flymake-childframe--frame)))))
 
+(define-derived-mode flymake-childframe-buffer-mode fundamental-mode "flymake-childframe"
+  "Major mode to display the `flymake-childframe' buffer.")
 
 (defun flymake-childframe--set-frame-size ()
   "Set `flymake-chldframe--frame' size based on `flymake-childframe--buffer'."
