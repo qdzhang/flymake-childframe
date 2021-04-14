@@ -164,24 +164,31 @@ Each element should be a function that takes exactly one argument (error-list, s
         (concat out "\n" (flymake-childframe--format-info error-list))
       out)))
 
-(defun flymake-childframe--set-frame-size (height width)
-  "Set `flymake-chldframe--frame' size based on the content in `flymake-childframe--buffer'."
-  (with-current-buffer flymake-childframe--buffer
-    (let ((current-width (- (line-end-position) (line-beginning-position)))
-          new-height new-width)
-      (setq new-width (max width current-width)
-            new-height (1+ height))
-      (if (= (line-number-at-pos (point)) 1)
-          `(,(+ new-width 2) 1)
-        (line-move -1)
-        (flymake-childframe--set-frame-size new-height new-width)))))
+(defun flymake-childframe--set-frame-size ()
+  "Set `flymake-chldframe--frame' size based on `flymake-childframe--buffer'."
+  (let ((max-width (/ (frame-width (frame-parent flymake-childframe--frame)) 2))
+        (height 0)
+        (width 0))
+
+    (with-current-buffer flymake-childframe--buffer
+      (dolist (error-msg (split-string (buffer-string) "\n"))
+        (let ((current-width (length error-msg)))
+
+          ;; if the current message is too long
+          (when (> current-width max-width)
+            (setq current-width max-width
+                  height (1+ height)))
+
+          ;; update width and height
+          (setq width (max current-width width)
+                height (1+ height))))
+      `(,width ,height))))
 
 (defun flymake-chlidframe--set-frame-position ()
-  "Determine frame position."
-  (let* ((x-orig (car (window-absolute-pixel-position)))
-         (y-orig (cdr (window-absolute-pixel-position)))
-         (x (+ x-orig (car flymake-childframe-position-offset)))
-         (y (+ y-orig (cdr flymake-childframe-position-offset)))
+  "Return the pixel position of `point', adjusted if the size of `flymake-childframe--frame' exceeds the boundary of the current frame."
+  (let* ((x (car (window-absolute-pixel-position)))
+         (y (+ (cdr (window-absolute-pixel-position))
+               (default-line-height)))
          (off-set (- (+ x (frame-pixel-width flymake-childframe--frame))
                      (nth 2 (frame-edges)))))
     (if (> off-set 0)
