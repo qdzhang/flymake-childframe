@@ -55,8 +55,8 @@
 
 (defcustom flymake-childframe-face
   '((note . default)
-    (warning . warning)
-    (error . error))
+    (warning . compilation-warning)
+    (error . compilation-error))
   "Faces for different messages types."
   :type '(alist :key-type symbol :value-type face)
   :group 'flymake-childframe)
