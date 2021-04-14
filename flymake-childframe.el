@@ -72,16 +72,12 @@
   :group 'flymake-childframe)
 
 (defcustom flymake-childframe-show-conditions
-  '((null (evil-insert-state-p))
-    (null (eq (flymake-childframe--get-current-line)
-              flymake-childframe--error-line)))
-  "A list of conditions under which `flymake-childframe' should pop error message."
-  :type '(repeat boolean)
-  :group 'flymake-childframe)
-
-(defcustom flymake-childframe-position-offset '(0 . 0)
-  "Pixel offset for `flymake-childframe--set-frame-position'. It should be a cons with x and y offset in car and cdr."
-  :type '(repeat number)
+  `(,(lambda (&rest _) (null (evil-insert-state-p)))
+    ,(lambda (&rest _)
+       (null (eq (flymake-childframe--get-current-line) flymake-childframe--error-line))))
+  "Conditions under which `flymake-childframe' should pop error message.
+Each element should be a function that takes exactly one argument (error-list, see the docstring of `flymake-childframe--get-error') and return a boolean value."
+  :type '(repeat function)
   :group 'flymake-childframe)
 
 (defconst flymake-childframe--buffer " *flymake-childframe-buffer*"
@@ -192,57 +188,53 @@
         `(,(- x off-set) ,y)
       `(,x ,y))))
 
-(defun flymake-childframe--show-p (error-list)
-  "A set of conditions under which flymake-childframe make and show childframe."
-  (eval `(and ,@error-list ,@flymake-childframe-show-conditions)))
-
 (defun flymake-childframe--show ()
   "Show error information at point."
-  (when-let ((error-list (flymake-childframe--get-error))
-             (current-window (selected-window))
-             ((flymake-childframe--show-p error-list))
-             (frame-para `(,@flymake-childframe--init-parameters
-                           (parent-frame . ,(selected-frame)))))
+  (interactive)
+  (let* ((error-list (flymake-childframe--get-error)))
+    (when (and error-list
+               (run-hook-with-args-until-success 'flymake-childframe-show-conditions error-list))
+      (let ((frame-para `(,@flymake-childframe--init-parameters
+                          (parent-frame . ,(selected-frame)))))
 
-    ;; First update buffer information
-    (with-current-buffer (get-buffer-create flymake-childframe--buffer)
-      (erase-buffer)
-      (insert (flymake-childframe--format-info error-list))
-      (setq-local cursor-type nil)
-      (setq-local cursor-in-non-selected-windows nil)
-      (setq-local mode-line-format nil)
-      (setq-local header-line-format nil))
+        ;; First update buffer information
+        (with-current-buffer (get-buffer-create flymake-childframe--buffer)
+          (erase-buffer)
+          (insert (flymake-childframe--format-info error-list))
+          (setq-local cursor-type nil)
+          (setq-local cursor-in-non-selected-windows nil)
+          (setq-local mode-line-format nil)
+          (setq-local header-line-format nil))
 
-    ;; Then create frame if needed
-    (unless (and flymake-childframe--frame (frame-live-p flymake-childframe--frame))
-      (setq flymake-childframe--frame (make-frame frame-para)))
+        ;; Then create frame if needed
+        (unless (and flymake-childframe--frame (frame-live-p flymake-childframe--frame))
+          (setq flymake-childframe--frame (make-frame frame-para)))
 
-    (with-selected-frame flymake-childframe--frame
-      (delete-other-windows)
-      (switch-to-buffer flymake-childframe--buffer))
+        (with-selected-frame flymake-childframe--frame
+          (delete-other-windows)
+          (switch-to-buffer flymake-childframe--buffer))
 
-    ;; move frame to desirable position
-    (apply 'set-frame-size
-           `(,flymake-childframe--frame ,@(flymake-childframe--set-frame-size 0 0)))
-    (apply 'set-frame-position
-           `(,flymake-childframe--frame ,@(flymake-chlidframe--set-frame-position)))
-    (set-face-background 'internal-border "gray80" flymake-childframe--frame)
+        ;; move frame to desirable position
+        (apply 'set-frame-size
+               `(,flymake-childframe--frame ,@(flymake-childframe--set-frame-size)))
+        (apply 'set-frame-position
+               `(,flymake-childframe--frame ,@(flymake-chlidframe--set-frame-position)))
+        (set-face-background 'internal-border "gray80" flymake-childframe--frame)
 
-    (redirect-frame-focus flymake-childframe--frame
-                          (frame-parent flymake-childframe--frame))
+        (redirect-frame-focus flymake-childframe--frame
+                              (frame-parent flymake-childframe--frame))
 
-    ;; set hooks
-    ;; update position info
-    (setq-local flymake-childframe--error-line
-                (flymake-childframe--get-current-line))
-    (setq-local flymake-childframe--error-pos (point))
+        ;; update position info
+        (setq-local flymake-childframe--error-line
+                    (flymake-childframe--get-current-line))
+        (setq-local flymake-childframe--error-pos (point))
 
-    ;; setup remove hook
-    (dolist (hook flymake-childframe-hide-childframe-hooks)
-      (add-hook hook #'flymake-childframe-hide))
+        ;; setup remove hook
+        (dolist (hook flymake-childframe-hide-childframe-hooks)
+          (add-hook hook #'flymake-childframe-hide))
 
-    ;; finally show frame
-    (make-frame-visible flymake-childframe--frame)))
+        ;; finally show frame
+        (make-frame-visible flymake-childframe--frame)))))
 
 (defun flymake-childframe-show ()
   "Show error information delaying for `flymake-childframe-delay' second."
