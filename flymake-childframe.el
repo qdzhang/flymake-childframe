@@ -2,7 +2,6 @@
 
 ;; Author: Junyi Hou <junyi.yi.hou@gmail.com>
 ;; Maintainer: Junyi Hou <junyi.yi.hou@gmail.com>
-;; Version: 0.0.3
 ;; Package-requires: ((emacs "26"))
 
 ;; This file is not part of GNU Emacs.
@@ -76,11 +75,14 @@
   :group 'flymake-childframe)
 
 (defcustom flymake-childframe-show-conditions
-  `(,(lambda (&rest _) (null (evil-insert-state-p)))
-    ,(lambda (&rest _)
-       (null (eq (flymake-childframe--get-current-line) flymake-childframe--error-line))))
+  `(
+    ,(lambda () (null (evil-insert-state-p)))
+    ,(lambda ()
+       (and (> (point) (car flymake-childframe--error-visual-line))
+            (< (point) (cdr flymake-childframe--error-visual-line))))
+    )
   "Conditions under which `flymake-childframe' should pop error message.
-Each element should be a function that takes exactly one argument (error-list, see the docstring of `flymake-childframe--get-error') and return a boolean value."
+Each element should be a function that takes no argument and return a boolean value."
   :type '(repeat function)
   :group 'flymake-childframe)
 
@@ -93,11 +95,9 @@ Each element should be a function that takes exactly one argument (error-list, s
   "A minor mode to display flymake error message in a childframe."
   :lighter nil
   :group flymake-childframe
-  (cond
-   (flymake-childframe-mode (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
-                            (add-hook 'post-command-hook #'flymake-childframe-reset-error-line nil 'local))
-   (t (remove-hook 'post-command-hook #'flymake-childframe-show 'local)
-      (remove-hook 'post-command-hook #'flymake-childframe-reset-error-line 'local))))
+  (if flymake-childframe-mode
+      (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
+    (remove-hook 'post-command-hook #'flymake-childframe-show 'local)))
 
 (defun flymake-childframe-show ()
   "Show error information delaying for `flymake-childframe-delay' second."
@@ -110,14 +110,12 @@ Each element should be a function that takes exactly one argument (error-list, s
   (unless (eq (point) flymake-childframe--error-pos)
     (make-frame-invisible flymake-childframe--frame)
 
+    ;; reset `flymake-childframe--error-visual-line'
+    (setq flymake-childframe--error-visual-line '(0 . 0))
+
+    ;; remove hook
     (dolist (hook flymake-childframe-hide-childframe-hooks)
       (remove-hook hook #'flymake-childframe-hide))))
-
-(defun flymake-childframe-reset-error-line ()
-  "Reset the line number for current error to 0."
-  (unless (eq (flymake-childframe--get-current-line)
-              flymake-childframe--error-line)
-    (setq-local flymake-childframe--error-line 0)))
 
 ;; ==================
 ;; internal variables
@@ -129,11 +127,12 @@ Each element should be a function that takes exactly one argument (error-list, s
 (defvar flymake-childframe--frame nil
   "Frame to display linter information.")
 
-(defvar-local flymake-childframe--error-pos 0
-  "The current cursor position.")
+(defvar-local flymake-childframe--last-cursor-pos 0
+  "The cursor position at which the error(s) are shown.
+`flymake-childframe' will hide the childframe if `point' is different than this.")
 
-(defvar-local flymake-childframe--error-line 0
-  "The current line number")
+(defvar-local flymake-childframe--error-visual-line '(0 . 0)
+  "The beginning and end of the visual line for the last displayed error(s).")
 
 (defconst flymake-childframe--init-parameters
   '((left . -1)
@@ -209,9 +208,10 @@ Each element should be a function that takes exactly one argument (error-list, s
                               (frame-parent flymake-childframe--frame))
 
         ;; update position info
-        (setq-local flymake-childframe--error-line
-                    (flymake-childframe--get-current-line))
         (setq-local flymake-childframe--error-pos (point))
+        (setq-local flymake-childframe--error-visual-line
+                    `(,(save-excursion (beginning-of-visual-line) (point)) .
+                      ,(save-excursion (end-of-visual-line) (point))))
 
         ;; setup remove hook
         (dolist (hook flymake-childframe-hide-childframe-hooks)
@@ -258,14 +258,10 @@ Each element should be a function that takes exactly one argument (error-list, s
 ;; get information from `flymake'
 ;; ==============================
 
-(defun flymake-childframe--get-current-line ()
-  "Return the current line number at point."
-  (string-to-number (format-mode-line "%l")))
-
 (defun flymake-childframe--get-error (&optional beg end)
   "Get `flymake--diag' between BEG and END, if they are not provided, use `line-beginning-position' and `line-end-position'.  Return a list of errors found between BEG and END."
-  (let* ((beg (or beg (line-beginning-position)))
-         (end (or end (line-end-position)))
+  (let* ((beg (or beg (save-excursion (beginning-of-visual-line) (point))))
+         (end (or end (save-excursion (end-of-visual-line) (point))))
          (error-list (flymake--overlays
                       :beg beg
                       :end end)))
