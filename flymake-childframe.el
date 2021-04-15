@@ -78,8 +78,8 @@
   `(
     ,(lambda () (null (evil-insert-state-p)))
     ,(lambda ()
-       (and (> (point) (car flymake-childframe--error-visual-line))
-            (< (point) (cdr flymake-childframe--error-visual-line))))
+       (or (< (point) (car flymake-childframe--error-visual-line))
+           (> (point) (cdr flymake-childframe--error-visual-line))))
     )
   "Conditions under which `flymake-childframe' should pop error message.
 Each element should be a function that takes no argument and return a boolean value."
@@ -174,7 +174,7 @@ Each element should be a function that takes no argument and return a boolean va
   "Show error information at point."
   (let* ((error-list (flymake-childframe--get-error)))
     (when (and error-list
-               (run-hook-with-args-until-success 'flymake-childframe-show-conditions error-list))
+               (run-hook-with-args-until-failure 'flymake-childframe-show-conditions))
       (let ((frame-para `(,@flymake-childframe--init-parameters
                           (parent-frame . ,(selected-frame)))))
 
