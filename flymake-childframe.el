@@ -134,6 +134,9 @@ Each element should be a function that takes no argument and return a boolean va
 (defvar-local flymake-childframe--error-visual-line '(0 . 0)
   "The beginning and end of the visual line for the last displayed error(s).")
 
+(defvar-local flymake-childframe--error-pos 0
+  "The beginning and end of the visual line for the last displayed error(s).")
+
 (defconst flymake-childframe--init-parameters
   '((left . -1)
     (top . -1)
