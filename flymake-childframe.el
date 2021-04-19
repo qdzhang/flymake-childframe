@@ -86,37 +86,6 @@ Each element should be a function that takes no argument and return a boolean va
   :type '(repeat function)
   :group 'flymake-childframe)
 
-;; ==========
-;; minor mode
-;; ==========
-
-;;;###autoload
-(define-minor-mode flymake-childframe-mode
-  "A minor mode to display flymake error message in a childframe."
-  :lighter nil
-  :group flymake-childframe
-  (if flymake-childframe-mode
-      (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
-    (remove-hook 'post-command-hook #'flymake-childframe-show 'local)))
-
-(defun flymake-childframe-show ()
-  "Show error information delaying for `flymake-childframe-delay' second."
-  (run-at-time flymake-childframe-delay nil
-               #'flymake-childframe--show))
-
-(defun flymake-childframe-hide ()
-  "Hide error information.  Only need to run once.  Once run, remove itself from the hooks."
-  ;; if move cursor, hide childframe
-  (unless (eq (point) flymake-childframe--error-pos)
-    (make-frame-invisible flymake-childframe--frame)
-
-    ;; reset `flymake-childframe--error-visual-line'
-    (setq flymake-childframe--error-visual-line '(0 . 0))
-
-    ;; remove hook
-    (dolist (hook flymake-childframe-hide-childframe-hooks)
-      (remove-hook hook #'flymake-childframe-hide))))
-
 ;; ==================
 ;; internal variables
 ;; ==================
@@ -168,6 +137,37 @@ Each element should be a function that takes no argument and return a boolean va
     (skip-taskbar . t)
     (minibuffer . nil))
   "The initial frame parameters for `flymake-childframe--frame'.")
+
+;; ==========
+;; minor mode
+;; ==========
+
+;;;###autoload
+(define-minor-mode flymake-childframe-mode
+  "A minor mode to display flymake error message in a childframe."
+  :lighter nil
+  :group flymake-childframe
+  (if flymake-childframe-mode
+      (add-hook 'post-command-hook #'flymake-childframe-show nil 'local)
+    (remove-hook 'post-command-hook #'flymake-childframe-show 'local)))
+
+(defun flymake-childframe-show ()
+  "Show error information delaying for `flymake-childframe-delay' second."
+  (run-at-time flymake-childframe-delay nil
+               #'flymake-childframe--show))
+
+(defun flymake-childframe-hide ()
+  "Hide error information.  Only need to run once.  Once run, remove itself from the hooks."
+  ;; if move cursor, hide childframe
+  (unless (eq (point) flymake-childframe--error-pos)
+    (make-frame-invisible flymake-childframe--frame)
+
+    ;; reset `flymake-childframe--error-visual-line'
+    (setq flymake-childframe--error-visual-line '(0 . 0))
+
+    ;; remove hook
+    (dolist (hook flymake-childframe-hide-childframe-hooks)
+      (remove-hook hook #'flymake-childframe-hide))))
 
 ;; =================
 ;; display mechanism
