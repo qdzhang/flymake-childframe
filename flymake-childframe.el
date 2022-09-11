@@ -76,7 +76,6 @@
 
 (defcustom flymake-childframe-show-conditions
   `(
-    ,(lambda () (null (evil-insert-state-p)))
     ,(lambda ()
        (or (< (point) (car flymake-childframe--error-visual-line))
            (> (point) (cdr flymake-childframe--error-visual-line))))
@@ -117,6 +116,8 @@ Each element should be a function that takes no argument and return a boolean va
     (min-width . 0)
     (min-height . 0)
     (internal-border-width . 1)
+    (child-frame-border-width . 1)
+    (background-color . "cornsilk")
     (vertical-scroll-bars . nil)
     (horizontal-scroll-bars . nil)
     (left-fringe . 0)
@@ -206,6 +207,7 @@ Each element should be a function that takes no argument and return a boolean va
         (apply 'set-frame-position
                `(,flymake-childframe--frame ,@(flymake-chlidframe--set-frame-position)))
         (set-face-background 'internal-border "gray80" flymake-childframe--frame)
+        (set-face-background 'child-frame-border "black" flymake-childframe--frame)
 
         (redirect-frame-focus flymake-childframe--frame
                               (frame-parent flymake-childframe--frame))
